@@ -70,7 +70,9 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.util.Progressable;
 
 import static org.apache.hadoop.fs.s3a.Constants.*;
+import static org.apache.hadoop.fs.s3a.Constants.USER_AGENT_PREFIX;
 
+import org.apache.hadoop.util.VersionInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -232,6 +234,8 @@ public class S3AFileSystem extends FileSystem {
       throw new IllegalArgumentException(msg);
     }
 
+    initUserAgent(conf, awsConf);
+
     s3 = new AmazonS3Client(credentials, awsConf);
     String endPoint = conf.getTrimmed(ENDPOINT,"");
     if (!endPoint.isEmpty()) {
@@ -313,6 +317,28 @@ public class S3AFileSystem extends FileSystem {
 
     setConf(conf);
   }
+
+  /**
+   * Initializes the User-Agent header to send in HTTP requests to the S3
+   * back-end.  We always include the Hadoop version number.  The user also
+   * may set an optional custom prefix to put in front of the Hadoop version
+   * number.  The AWS SDK internally appends its own information, which seems
+   * to include the AWS SDK version, OS and JVM version.
+   *
+   * @param conf Hadoop configuration
+   * @param awsConf AWS SDK configuration
+   */
+  private static void initUserAgent(Configuration conf,
+                                    ClientConfiguration awsConf) {
+    String userAgent = "Hadoop " + VersionInfo.getVersion();
+    String userAgentPrefix = conf.getTrimmed(USER_AGENT_PREFIX, "");
+    if (!userAgentPrefix.isEmpty()) {
+      userAgent = userAgentPrefix + ", " + userAgent;
+    }
+    LOG.debug("Using User-Agent: {}", userAgent);
+    awsConf.setUserAgent(userAgent);
+  }
+
 
   /**
    * Return the protocol scheme for the FileSystem.
