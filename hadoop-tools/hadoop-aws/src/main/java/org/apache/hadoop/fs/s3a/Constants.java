@@ -114,5 +114,8 @@ public class Constants {
   
   public static final String S3N_FOLDER_SUFFIX = "_$folder$";
   public static final String FS_S3A_BLOCK_SIZE = "fs.s3a.block.size";
+
+  public static final String USER_AGENT_PREFIX = "fs.s3a.user.agent.prefix";
+
   public static final String FS_S3A = "s3a";
 }
