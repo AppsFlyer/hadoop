@@ -22,7 +22,7 @@
     <version>2.7.3-af</version>
     <relativePath>../../hadoop-project</relativePath>
   </parent>
-  <artifactId>hadoop-aws</artifactId>
+  <artifactId>hadoop-aws-useragent-prefix</artifactId>
   <version>2.7.3-af</version>
   <name>Apache Hadoop Amazon Web Services support</name>
   <description>
