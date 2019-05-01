@@ -53,6 +53,8 @@ import com.amazonaws.services.s3.model.DeleteObjectsRequest;
 import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
 import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
 import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
 import com.amazonaws.services.s3.model.MultiObjectDeleteException;
 import com.amazonaws.services.s3.model.ObjectListing;
 import com.amazonaws.services.s3.model.ObjectMetadata;
@@ -1064,7 +1066,136 @@ public class S3AFileSystem extends FileSystem {
   protected ObjectListing listObjects(ListObjectsRequest request) {
     incrementStatistic(OBJECT_LIST_REQUESTS);
     incrementReadOperations();
-    return s3.listObjects(request);
+
+    ListObjectsV2Request requestV2 = new ListObjectsV2Request();
+
+    if (request.getSdkRequestTimeout() != null) {
+      requestV2.setSdkRequestTimeout(request.getSdkRequestTimeout());
+    }
+
+    if (request.getSdkClientExecutionTimeout() != null) {
+      requestV2.setSdkClientExecutionTimeout(request.getSdkClientExecutionTimeout());
+    }
+
+    requestV2.setBucketName(request.getBucketName());
+    requestV2.setPrefix(request.getPrefix());
+    requestV2.setDelimiter(request.getDelimiter());
+    requestV2.setMaxKeys(request.getMaxKeys());
+    requestV2.setContinuationToken(request.getMarker());
+
+    requestV2.setRequestCredentialsProvider(request.getRequestCredentialsProvider());
+    requestV2.setGeneralProgressListener(request.getGeneralProgressListener());
+
+    return listObjectV2(requestV2);
+  }
+
+  private ObjectListing listObjectV2(ListObjectsV2Request request) {
+    ListObjectsV2Result result = s3.listObjectsV2(request);
+    return new ObjectListingWrapper(result);
+  }
+
+  private static class ObjectListingWrapper extends ObjectListing {
+
+    private final ListObjectsV2Result listRequest;
+
+    public ObjectListingWrapper(ListObjectsV2Result listRequest) {
+      this.listRequest = listRequest;
+    }
+
+    @Override
+    public boolean isTruncated() {
+      return listRequest.isTruncated();
+    }
+
+    @Override
+    public void setTruncated(boolean isTruncated) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public String getBucketName() {
+      return listRequest.getBucketName();
+    }
+
+    @Override
+    public void setBucketName(String bucketName) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public String getPrefix() {
+      return listRequest.getPrefix();
+    }
+
+    @Override
+    public void setPrefix(String prefix) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public String getDelimiter() {
+      return listRequest.getDelimiter();
+    }
+
+    @Override
+    public void setDelimiter(String delimiter) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public String getEncodingType() {
+      return listRequest.getEncodingType();
+    }
+
+    @Override
+    public void setEncodingType(String encodingType) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public int getMaxKeys() {
+      return listRequest.getMaxKeys();
+    }
+
+    @Override
+    public void setMaxKeys(int maxKeys) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public List<S3ObjectSummary> getObjectSummaries() {
+      return listRequest.getObjectSummaries();
+    }
+
+    @Override
+    public List<String> getCommonPrefixes() {
+      return listRequest.getCommonPrefixes();
+    }
+
+    @Override
+    public void setCommonPrefixes(List<String> commonPrefixes) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public String getNextMarker() {
+      return listRequest.getNextContinuationToken();
+    }
+
+    @Override
+    public void setNextMarker(String nextMarker) {
+      throw new IllegalStateException();
+    }
+
+    @Override
+    public String getMarker() {
+      return listRequest.getContinuationToken();
+    }
+
+    @Override
+    public void setMarker(String marker) {
+      throw new IllegalStateException();
+    }
   }
 
   /**
@@ -1075,7 +1206,17 @@ public class S3AFileSystem extends FileSystem {
   protected ObjectListing continueListObjects(ObjectListing objects) {
     incrementStatistic(OBJECT_CONTINUE_LIST_REQUESTS);
     incrementReadOperations();
-    return s3.listNextBatchOfObjects(objects);
+
+    ListObjectsV2Request request = new ListObjectsV2Request();
+
+    request.setBucketName(objects.getBucketName());
+    request.setPrefix(objects.getPrefix());
+    request.setContinuationToken(objects.getNextMarker());
+    request.setDelimiter(objects.getDelimiter());
+    request.setMaxKeys(objects.getMaxKeys());
+    request.setEncodingType(objects.getEncodingType());
+
+    return listObjectV2(request);
   }
 
   /**
