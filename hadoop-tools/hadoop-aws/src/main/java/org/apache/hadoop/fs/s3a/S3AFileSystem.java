@@ -43,7 +43,29 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import com.amazonaws.AmazonClientException;
 import com.amazonaws.AmazonServiceException;
 import com.amazonaws.services.s3.AmazonS3;
-import com.amazonaws.services.s3.model.*;
+import com.amazonaws.services.s3.model.AbortMultipartUploadRequest;
+import com.amazonaws.services.s3.model.AmazonS3Exception;
+import com.amazonaws.services.s3.model.CannedAccessControlList;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadRequest;
+import com.amazonaws.services.s3.model.CompleteMultipartUploadResult;
+import com.amazonaws.services.s3.model.CopyObjectRequest;
+import com.amazonaws.services.s3.model.DeleteObjectsRequest;
+import com.amazonaws.services.s3.model.GetObjectMetadataRequest;
+import com.amazonaws.services.s3.model.InitiateMultipartUploadRequest;
+import com.amazonaws.services.s3.model.ListObjectsRequest;
+import com.amazonaws.services.s3.model.ListObjectsV2Result;
+import com.amazonaws.services.s3.model.ListObjectsV2Request;
+import com.amazonaws.services.s3.model.MultiObjectDeleteException;
+import com.amazonaws.services.s3.model.ObjectListing;
+import com.amazonaws.services.s3.model.ObjectMetadata;
+import com.amazonaws.services.s3.model.PartETag;
+import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.PutObjectResult;
+import com.amazonaws.services.s3.model.S3ObjectSummary;
+import com.amazonaws.services.s3.model.SSEAwsKeyManagementParams;
+import com.amazonaws.services.s3.model.SSECustomerKey;
+import com.amazonaws.services.s3.model.UploadPartRequest;
+import com.amazonaws.services.s3.model.UploadPartResult;
 import com.amazonaws.services.s3.transfer.Copy;
 import com.amazonaws.services.s3.transfer.TransferManager;
 import com.amazonaws.services.s3.transfer.TransferManagerConfiguration;
@@ -1064,7 +1086,11 @@ public class S3AFileSystem extends FileSystem {
     requestV2.setRequestCredentialsProvider(request.getRequestCredentialsProvider());
     requestV2.setGeneralProgressListener(request.getGeneralProgressListener());
 
-    ListObjectsV2Result result = s3.listObjectsV2(requestV2);
+    return listObjectV2(requestV2);
+  }
+
+  private ObjectListing listObjectV2(ListObjectsV2Request request) {
+    ListObjectsV2Result result = s3.listObjectsV2(request);
     return new ObjectListingWrapper(result);
   }
 
@@ -1143,7 +1169,6 @@ public class S3AFileSystem extends FileSystem {
 
     @Override
     public List<String> getCommonPrefixes() {
-      if (listRequest == null) throw new NullPointerException("wtf!");
       return listRequest.getCommonPrefixes();
     }
 
@@ -1181,7 +1206,17 @@ public class S3AFileSystem extends FileSystem {
   protected ObjectListing continueListObjects(ObjectListing objects) {
     incrementStatistic(OBJECT_CONTINUE_LIST_REQUESTS);
     incrementReadOperations();
-    return s3.listNextBatchOfObjects(objects);
+
+    ListObjectsV2Request request = new ListObjectsV2Request();
+
+    request.setBucketName(objects.getBucketName());
+    request.setPrefix(objects.getPrefix());
+    request.setContinuationToken(objects.getNextMarker());
+    request.setDelimiter(objects.getDelimiter());
+    request.setMaxKeys(objects.getMaxKeys());
+    request.setEncodingType(objects.getEncodingType());
+
+    return listObjectV2(request);
   }
 
   /**
